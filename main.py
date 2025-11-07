@@ -5,7 +5,7 @@ import os, sys, time, numpy, dxcam, pygame, random, mouse
 
 target_value_white = (255, 255, 255)
 target_value_red = (225, 1, 1)
-tolerance_white = 85
+tolerance_white = 0
 tolerance_red = 5
 monitor_index = 0 # changes what monitor gets scanned
 scan_step = 1
