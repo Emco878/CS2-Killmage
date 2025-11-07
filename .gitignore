@@ -1,4 +1,14 @@
-/.venv
+# Ignore Python virtual environment
+.venv/
 
+# Ignore Python Build Folder
 build/
 dist/
+images/
+
+settings.txt
+sound-effect.wav
+
+# Ignore compiled Python files
+__pycache__/
+*.py[cod]S
