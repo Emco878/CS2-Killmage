@@ -2,7 +2,8 @@ import main
 from main import RGBScanner, ImageWindow
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLineEdit, QTextEdit, QLabel
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QRegExp
+from PyQt5.QtGui import QRegExpValidator
 
 import sys, subprocess, os, pyautogui
 
@@ -95,6 +96,16 @@ class MainWindow(QMainWindow):
     def start_program(self):
         self.start_button.hide()
         self.stop_button.show()
+
+        try:
+            tolerance = int(self.tolerance_value.text())
+        except ValueError:
+            tolerance = 85
+
+        if tolerance < 1 or tolerance > 100:
+            tolerance = 85
+            print("⚠️ Tolerance value must be between 1 and 100. Using default value of 85.")
+            self.tolerance_value.setText(str(tolerance))
 
         main.tolerance_white = int(self.tolerance_value.text()) # Grabs the Tolerance Value from GUI and applies it to Main.py
         main.health_region = tuple(map(int, self.health_region_value.text().split(',')))
@@ -211,6 +222,16 @@ class MainWindow(QMainWindow):
         line_edit.setStyleSheet("""font-size: 18px; font-family: "Segoe UI"; color: #FFFFFF; border: 2px solid #FFFFFF; border-radius: 8px; padding-left: 4px;""")
         line_edit.setContextMenuPolicy(Qt.NoContextMenu)
         line_edit.setAlignment(Qt.AlignCenter)
+
+        # Allow only digits and commas
+        regex = QRegExp("^[0-9,]*$")
+        validator = QRegExpValidator(regex, line_edit)
+        line_edit.setValidator(validator)
+
+        if not hasattr(self, "_validators"):
+            self._validators = []
+        self._validators.append(validator)
+
         return line_edit
 
     # ---- Function to create a Text_box ---- #
@@ -230,4 +251,4 @@ if __name__ == "__main__":
 
     sys.exit(app.exec_())
 
-#TODO: Make Text Boxes Int Values only. Make the DXCam error go away.
+#TODO: Make the DXCam error go away. Add a bunch of fails safes so that the program does not crash when an error happens.
