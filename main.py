@@ -115,6 +115,8 @@ class RGBScanner(QThread):
         self.last_click_time = 0
         self.click_window = 0.5  # seconds allowed after a click
         self.last_trigger_time = 0
+        self.running = True
+        self.cam = None
 
         # Register a one-time click listener
         mouse.on_click(self.on_mouse_click)
@@ -122,23 +124,37 @@ class RGBScanner(QThread):
     def on_mouse_click(self):
         self.last_click_time = time.time()
 
+    def stop(self):
+        self.running = False
+        if self.cam:
+            try:
+                self.cam.stop()  # stop capture
+                del self.cam
+                self.cam = None
+            except Exception as e:
+                print(f"⚠️ Error releasing DXCam: {e}")
+
     def run(self):
         print("🔷 Starting...")
-        cam = dxcam.create(device_idx=monitor_index, output_idx=monitor_index)
+        try:
+            self.cam = dxcam.create(device_idx=monitor_index, output_idx=monitor_index)
+        except Exception as e:
+            print(f"❌ Failed to initialize DXCam: {e}")
+            return
 
-        while True:
-            frame_bottom_left = cam.grab(region=health_region)
-            frame_top_right = cam.grab(region=avatar_region)
-            frame_top_right = cam.grab(region=kill_region)
+        while self.running:
+            frame_bottom_left = self.cam.grab(region=health_region)
+            frame_top_right = self.cam.grab(region=avatar_region)
+            frame_kill_feed = self.cam.grab(region=kill_region)
 
-            if frame_bottom_left is None or frame_top_right is None:
+            if frame_bottom_left is None or frame_top_right is None or frame_kill_feed is None:
+                time.sleep(0.05)
                 continue
 
             bottom_has_white = color_match(frame_bottom_left, target_value_white, target_value_white, tolerance_white, scan_step)
             bottom_left_has_white = color_match(frame_bottom_left, target_value_white, target_value_white, tolerance_white, scan_step)
             top_right_has_red = color_match(frame_top_right, target_value_red, target_value_red, tolerance_red, scan_step)
 
-            # ✅ Trigger only when both RGB colors found AND recent click occurred
             now = time.time()
             if bottom_has_white and bottom_left_has_white and top_right_has_red:
                 if now - self.last_click_time <= self.click_window:
@@ -148,3 +164,6 @@ class RGBScanner(QThread):
                         self.trigger_detected.emit()
 
             time.sleep(0.05)
+
+        # Cleanup after the loop exits
+        self.stop()
