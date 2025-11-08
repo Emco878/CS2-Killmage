@@ -121,10 +121,12 @@ class MainWindow(QMainWindow):
     def stop_program(self):
         self.start_button.show()
         self.stop_button.hide()
+        self.start_button.setDisabled(True)
+        QTimer.singleShot(1000, lambda: self.start_button.setDisabled(False))
+        # self.enable_button()
 
         if hasattr(self, "scanner") and self.scanner.isRunning():
-            # self.scanner.requestInterruption()  # asks the thread to stop
-            self.scanner.terminate()            # force stops if it doesn’t respond
+            self.scanner.stop()            # force stops if it doesn’t respond
             self.scanner.wait()                 # waits for the thread to finish
             print("🛑 Program Stopped!")
 
@@ -250,5 +252,3 @@ if __name__ == "__main__":
     window.show()
 
     sys.exit(app.exec_())
-
-#TODO: Make the DXCam error go away. Add a bunch of fails safes so that the program does not crash when an error happens.
