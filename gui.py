@@ -121,9 +121,6 @@ class MainWindow(QMainWindow):
     def stop_program(self):
         self.start_button.show()
         self.stop_button.hide()
-        self.start_button.setDisabled(True)
-        QTimer.singleShot(1000, lambda: self.start_button.setDisabled(False))
-        # self.enable_button()
 
         if hasattr(self, "scanner") and self.scanner.isRunning():
             self.scanner.stop()            # force stops if it doesn’t respond
