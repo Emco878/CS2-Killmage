@@ -3,9 +3,9 @@ from main import RGBScanner, ImageWindow
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLineEdit, QTextEdit, QLabel
 from PyQt5.QtCore import Qt, QTimer, QRegExp
-from PyQt5.QtGui import QRegExpValidator
+from PyQt5.QtGui import QRegExpValidator, QIcon
 
-import sys, subprocess, os, pyautogui
+import sys, subprocess, os, pyautogui, ctypes
 
 class EmittingStream:
     def __init__(self, console):
@@ -17,12 +17,21 @@ class EmittingStream:
     def flush(self):
         pass
 
+def resource_path(relative_path):
+    """Get absolute path to resource for dev and PyInstaller"""
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
+
+icon_path = resource_path("icon.ico")
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("CS2 Killmage")
+        self.setWindowIcon(QIcon(icon_path))
         self.resize(700, 600)
         self.setStyleSheet("background-color: #242424")
+        ctypes.windll.dwmapi.DwmSetWindowAttribute(int(self.winId()), 20, ctypes.byref(ctypes.c_int(1)), ctypes.sizeof(ctypes.c_int(1)))
         self.setFixedSize(self.width(), self.height())
 
         self.title = self.create_label("CS2 Killmage", 0, 12, 700 , 50)
@@ -250,5 +259,3 @@ if __name__ == "__main__":
     window.show()
 
     sys.exit(app.exec_())
-
-#TODO: Prevent the Program from Freezing and Closing
