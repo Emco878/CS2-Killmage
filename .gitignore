@@ -9,7 +9,6 @@ images/
 settings.txt
 todo.txt
 sound-effect.wav
-icon.ico
 
 # Ignore compiled Python files
 __pycache__/
