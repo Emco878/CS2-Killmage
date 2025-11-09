@@ -121,9 +121,10 @@ class MainWindow(QMainWindow):
     def stop_program(self):
         self.start_button.show()
         self.stop_button.hide()
+        self.scanner.stop()
 
         if hasattr(self, "scanner") and self.scanner.isRunning():
-            self.scanner.stop()            # force stops if it doesn’t respond
+            self.scanner.terminate()            # force stops if it doesn’t respond
             self.scanner.wait()                 # waits for the thread to finish
             print("🛑 Program Stopped!")
 
@@ -249,3 +250,5 @@ if __name__ == "__main__":
     window.show()
 
     sys.exit(app.exec_())
+
+#TODO: Prevent the Program from Freezing and Closing
