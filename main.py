@@ -73,7 +73,7 @@ class ImageWindow(QWidget):
 
         # Center after resizing (ensures geometry is updated)
         QTimer.singleShot(0, self.center_on_screen)
-        print(f"📷 Displaying Image: {image_path} ({pixmap.width()}x{pixmap.height()})")
+        print(f"📷 Displaying Image: {image_path} ({pixmap.width()}x{pixmap.height()})\n")
 
     def center_on_screen(self):
         QApplication.processEvents()
@@ -130,30 +130,54 @@ class RGBScanner(QThread):
         self.cam = None
 
     def run(self):
-        print("🔷 Starting...")
-        self.cam = dxcam.create(device_idx=monitor_index, output_idx=monitor_index)
+        print("🔷 Program Started!")
 
-        while self.running == True:
-            frame_bottom_left = self.cam.grab(region=health_region)
-            frame_top_right = self.cam.grab(region=avatar_region)
-            frame_top_right = self.cam.grab(region=kill_region)
+        try:
+            self.cam = dxcam.create(device_idx=monitor_index, output_idx=monitor_index)
+            if not self.cam:
+                print("⚠️ Failed to initialize DXCam capture.")
+                return
+        except Exception as e:
+            print(f"❌ DXCam initialization failed: {e}")
+            return
 
-            if frame_bottom_left is None or frame_top_right is None:
-                time.sleep(0.05)
-                continue
+        try:
+            while self.running:
+                try:
+                    frame_health = self.cam.grab(region=health_region)
+                    frame_avatar = self.cam.grab(region=avatar_region)
+                    frame_kill = self.cam.grab(region=kill_region)
 
-            bottom_has_white = color_match(frame_bottom_left, target_value_white, target_value_white, tolerance_white, scan_step)
-            bottom_left_has_white = color_match(frame_bottom_left, target_value_white, target_value_white, tolerance_white, scan_step)
-            top_right_has_red = color_match(frame_top_right, target_value_red, target_value_red, tolerance_red, scan_step)
+                    if frame_health is None or frame_avatar is None or frame_kill is None:
+                        time.sleep(0.05)
+                        continue
 
-            # ✅ Trigger only when both RGB colors found AND recent click occurred
-            now = time.time()
-            if bottom_has_white and bottom_left_has_white and top_right_has_red:
-                if now - self.last_click_time <= self.click_window:
-                    if now - self.last_trigger_time > cooldown:
-                        self.last_trigger_time = now
-                        print("\n💀 Kill Detected!")
-                        self.trigger_detected.emit()
+                    bottom_has_white = color_match(frame_health, target_value_white, target_value_white, tolerance_white, scan_step)
+                    avatar_has_white = color_match(frame_avatar, target_value_white, target_value_white, tolerance_white, scan_step)
+                    kill_has_red = color_match(frame_kill, target_value_red, target_value_red, tolerance_red, scan_step)
 
-            time.sleep(0.05)
-        self.stop()
+                    now = time.time()
+                    if bottom_has_white and avatar_has_white and kill_has_red:
+                        if now - self.last_click_time <= self.click_window:
+                            if now - self.last_trigger_time > cooldown:
+                                self.last_trigger_time = now
+                                print("💀 Kill Detected!")
+                                self.trigger_detected.emit()
+
+                    time.sleep(0.05)
+
+                except Exception as e:
+                    print(f"⚠️ Error in scan loop: {e}")
+                    time.sleep(0.2)
+                    continue
+
+        except Exception as e:
+            print(f"🚨 Fatal scanner error: {e}")
+
+        finally:
+            if self.cam:
+                try:
+                    self.cam.stop()
+                except Exception:
+                    pass
+            print("🛑 Scanner stopped safely.")
