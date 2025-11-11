@@ -100,10 +100,9 @@ def select_random_image():
         random_image = random.choice(images)
         return os.path.join(folder_path, random_image)
 
-def color_match(frame, color_white, color_red, tolerance, step):
+def color_match(frame, color, tolerance, step):
     sampled = frame[::step, ::step, :3]
-    diff = numpy.abs(sampled - color_white)
-    diff = numpy.abs(sampled - color_red)
+    diff = numpy.abs(sampled - color)
     mask = numpy.all(diff <= tolerance, axis=-1)
     return numpy.any(mask)
 
@@ -113,25 +112,34 @@ class RGBScanner(QThread):
     def __init__(self):
         super().__init__()
         self.last_click_time = 0
-        self.click_window = 0.5  # seconds allowed after a click
+        self.click_window = 1.0       # seconds allowed after a click
         self.last_trigger_time = 0
+        self.cooldown = 0.5           # minimum delay between triggers
         self.running = True
         self.cam = None
 
-        # Register a one-time click listener
+        # Register a one-time mouse click listener
         mouse.on_click(self.on_mouse_click)
 
     def on_mouse_click(self):
+        """Called when the user clicks the mouse."""
         self.last_click_time = time.time()
 
     def stop(self):
+        """Stop scanning and release DXCam safely."""
         self.running = False
-        self.cam.stop()
+        if self.cam:
+            try:
+                self.cam.stop()
+            except Exception:
+                pass
         self.cam = None
 
     def run(self):
+        """Main scanning loop."""
         print("🔷 Program Started!")
 
+        # Initialize DXCam
         try:
             self.cam = dxcam.create(device_idx=monitor_index, output_idx=monitor_index)
             if not self.cam:
@@ -144,22 +152,31 @@ class RGBScanner(QThread):
         try:
             while self.running:
                 try:
-                    frame_health = self.cam.grab(region=health_region)
-                    frame_avatar = self.cam.grab(region=avatar_region)
-                    frame_kill = self.cam.grab(region=kill_region)
-
-                    if frame_health is None or frame_avatar is None or frame_kill is None:
+                    # --- Capture one full frame ---
+                    frame = self.cam.grab()
+                    if frame is None:
                         time.sleep(0.05)
                         continue
 
-                    bottom_has_white = color_match(frame_health, target_value_white, target_value_white, tolerance_white, scan_step)
-                    avatar_has_white = color_match(frame_avatar, target_value_white, target_value_white, tolerance_white, scan_step)
-                    kill_has_red = color_match(frame_kill, target_value_red, target_value_red, tolerance_red, scan_step)
+                    frame_health = frame[health_region[1]:health_region[3], health_region[0]:health_region[2]]
+                    frame_avatar = frame[avatar_region[1]:avatar_region[3], avatar_region[0]:avatar_region[2]]
+                    frame_kill   = frame[kill_region[1]:kill_region[3], kill_region[0]:kill_region[2]]
+
+                    if any(r.size == 0 for r in (frame_health, frame_avatar, frame_kill)):
+                        time.sleep(0.05)
+                        continue
+
+                    # --- Color detection ---
+                    health_has_white = color_match(frame_health, target_value_white, tolerance_white, scan_step)
+                    avatar_has_white = color_match(frame_avatar, target_value_white, tolerance_white, scan_step)
+                    kill_has_red     = color_match(frame_kill, target_value_red, tolerance_red, scan_step)
 
                     now = time.time()
-                    if bottom_has_white and avatar_has_white and kill_has_red:
+
+                    # --- Detection logic ---
+                    if health_has_white and avatar_has_white and kill_has_red:
                         if now - self.last_click_time <= self.click_window:
-                            if now - self.last_trigger_time > cooldown:
+                            if now - self.last_trigger_time > self.cooldown:
                                 self.last_trigger_time = now
                                 print("💀 Kill Detected!")
                                 self.trigger_detected.emit()
@@ -175,9 +192,5 @@ class RGBScanner(QThread):
             print(f"🚨 Fatal scanner error: {e}")
 
         finally:
-            if self.cam:
-                try:
-                    self.cam.stop()
-                except Exception:
-                    pass
+            self.stop()
             print("🛑 Scanner stopped safely.")
