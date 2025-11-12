@@ -110,9 +110,9 @@ class MainWindow(QMainWindow):
         except ValueError:
             tolerance = 85
 
-        if tolerance < 1 or tolerance > 100:
+        if tolerance < 1 or tolerance > 120:
             tolerance = 85
-            print("⚠️ Tolerance value must be between 1 and 100. Using default value of 85.")
+            print("⚠️ Tolerance value must be between 1 and 120. Using default value of 85.")
             self.tolerance_value.setText(str(tolerance))
 
         main.tolerance_white = int(self.tolerance_value.text()) # Grabs the Tolerance Value from GUI and applies it to Main.py
@@ -166,8 +166,8 @@ class MainWindow(QMainWindow):
         print("✅ Settings loaded!")
 
     def resolution_1440p_change(self):
-        self.health_region_value.setText("827, 1400, 828, 1401")
-        self.avatar_region_value.setText("1278, 1356, 1279, 1357")
+        self.health_region_value.setText("828, 1400, 829, 1401")
+        self.avatar_region_value.setText("1304, 1402, 1305, 1403")
         self.kill_region_value.setText("2545, 100, 2546, 680")
         self.resolution_button.hide()
         self.resolution_720p.hide()
