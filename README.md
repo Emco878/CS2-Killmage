@@ -27,6 +27,7 @@ Download the latest release version of [CS2 Killmage.exe](https://github.com/Emc
 - Color Tolerance Adjuster
 
 ## 📃 How-To-Use
+- `image` + `settings.txt` + `sound.wav` must all be in a folder with `CS2 Killmage.exe` for the application to work.
 - Put in any amount of images you want into the `image` folder
 - Once you open the application select the Resolution you are using and click the `Save` Button
 - If you get a kill and an `image` does not show up consistently make sure you adjust your `tolerance` value or adjust your `pixel location` in the 3 Regions
