@@ -1,9 +1,10 @@
 from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, QGraphicsOpacityEffect)
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import (QTimer, Qt, QPropertyAnimation, QEasingCurve, QThread, pyqtSignal)
-import os, sys, time, numpy, dxcam, pygame, random, mouse
+import os, time, numpy, dxcam, pygame, random, mouse
 
-target_value_white = (255, 255, 255)
+target_value_ct = (255, 255, 255)   # CT has a different RGB Value compared to T
+target_value_t = (255, 255, 192)    # T has a different RGB Value compared to CT    
 target_value_red = (225, 1, 1)
 tolerance_white = 0
 tolerance_red = 5
@@ -11,8 +12,8 @@ monitor_index = 0 # changes what monitor gets scanned
 scan_step = 1
 cooldown = 0.6
 
-health_region = (827, 1400, 828, 1401) # Health Bar
-avatar_region = (1240, 1370, 1241, 1371) # Avatar
+health_region = (828, 1400, 829, 1401) # Health Bar
+avatar_region = (1304, 1402, 1305, 1403) # Avatar
 kill_region = (2545, 100, 2546, 680) # Kill Feed
 
 folder_path = "images"
@@ -100,11 +101,14 @@ def select_random_image():
         random_image = random.choice(images)
         return os.path.join(folder_path, random_image)
 
-def color_match(frame, color, tolerance, step):
+def color_match(frame, color1, color2, tolerance, step):
     sampled = frame[::step, ::step, :3]
-    diff = numpy.abs(sampled - color)
-    mask = numpy.all(diff <= tolerance, axis=-1)
-    return numpy.any(mask)
+    diff1 = numpy.abs(sampled - color1)
+    diff2 = numpy.abs(sampled - color2)
+    mask1 = numpy.all(diff1 <= tolerance, axis=-1)
+    mask2 = numpy.all(diff2 <= tolerance, axis=-1)
+    return numpy.any(mask1) or numpy.any(mask2)
+
 
 class RGBScanner(QThread):
     trigger_detected = pyqtSignal()
@@ -167,9 +171,9 @@ class RGBScanner(QThread):
                         continue
 
                     # --- Color detection ---
-                    health_has_white = color_match(frame_health, target_value_white, tolerance_white, scan_step)
-                    avatar_has_white = color_match(frame_avatar, target_value_white, tolerance_white, scan_step)
-                    kill_has_red     = color_match(frame_kill, target_value_red, tolerance_red, scan_step)
+                    health_has_white = color_match(frame_health, target_value_ct, target_value_t, tolerance_white, scan_step)
+                    avatar_has_white = color_match(frame_avatar, target_value_ct, target_value_t, tolerance_white, scan_step)
+                    kill_has_red = color_match(frame_kill, target_value_red, target_value_red, tolerance_red, scan_step)
 
                     now = time.time()
 
@@ -180,6 +184,7 @@ class RGBScanner(QThread):
                                 self.last_trigger_time = now
                                 print("💀 Kill Detected!")
                                 self.trigger_detected.emit()
+                                time.sleep(cooldown)
 
                     time.sleep(0.05)
 
