@@ -1,11 +1,11 @@
 import main
 from main import RGBScanner, ImageWindow
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLineEdit, QTextEdit, QLabel
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLineEdit, QTextEdit, QLabel, QCheckBox
 from PyQt5.QtCore import Qt, QTimer, QRegExp
 from PyQt5.QtGui import QRegExpValidator, QIcon
 
-import sys, subprocess, os, pyautogui, ctypes
+import sys, subprocess, os, pyautogui, ctypes, random
 
 class EmittingStream:
     def __init__(self, console):
@@ -36,6 +36,11 @@ class MainWindow(QMainWindow):
         self.title = self.create_label("CS2 Killmage", 0, 12, 700 , 50)
         self.title.setStyleSheet("""font-size: 30px; font-family: "Segoe UI"; font-weight: bold; background: transparent; color: #FFFFFF;""")
         self.title.setAlignment(Qt.AlignCenter)
+
+        #* Mute Button *#
+        self.mute = self.create_button("🔊", 650, 40, 35, 35)
+        self.mute.setStyleSheet("""QPushButton {font-size: 22px; background: transparent; color: #FFFFFF; border-radius: 8px;}""")
+        self.mute.clicked.connect(self.toggle_mute)
 
         #* Console *#
         self.console = self.create_textbox(325, 75, 330, 360)
@@ -77,6 +82,12 @@ class MainWindow(QMainWindow):
         self.resolution_720p.clicked.connect(self.resolution_1440p_change)
         self.resolution_720p.hide()
 
+        #* Checkbox Button *#
+        self.checkbox = self.create_checkbox("Random Popup", 50, 403, 225, 30)
+        self.random_mode = False
+        self.random_active = False
+        self.checkbox.stateChanged.connect(self.toggle_random_mode)
+
         #* SAVE Button *#
         self.save_button = self.create_button("Save", 50, 450, 225, 60)
         self.save_button.clicked.connect(self.save_settings)
@@ -91,10 +102,10 @@ class MainWindow(QMainWindow):
         self.stop_button.clicked.connect(self.stop_program)
 
         #* X & Y Coordinate *#
-        self.pixel_locator()
-        self.load_settings()
         self.x_coordinate = self.create_label("X: ", 60, 520, 130, 45)
         self.y_coordinate = self.create_label("Y: ", 60, 550, 130, 45)
+        self.pixel_locator()
+        self.load_settings()
 
         #* Folder Button *#
         self.folder_button = self.create_button("📁", 650, 550, 35, 35)
@@ -105,14 +116,23 @@ class MainWindow(QMainWindow):
         self.start_button.hide()
         self.stop_button.show()
 
+        # Random Mode
+        if self.random_mode:
+            print("🔷 Program Started!")
+            self.image_window = ImageWindow()
+            self.random_active = True
+            self.start_random_popups()
+            return
+
+        # Normal Mode
         try:
             tolerance = int(self.tolerance_value.text())
         except ValueError:
-            tolerance = 85
+            tolerance = 45
 
         if tolerance < 1 or tolerance > 120:
-            tolerance = 85
-            print("⚠️ Tolerance value must be between 1 and 120. Using default value of 85.")
+            tolerance = 45
+            print("⚠️ Tolerance value must be between 1 and 120. Using default value of 45.")
             self.tolerance_value.setText(str(tolerance))
 
         main.tolerance_white = int(self.tolerance_value.text()) # Grabs the Tolerance Value from GUI and applies it to Main.py
@@ -129,12 +149,43 @@ class MainWindow(QMainWindow):
     def stop_program(self):
         self.start_button.show()
         self.stop_button.hide()
-        self.scanner.stop()
 
-        if hasattr(self, "scanner") and self.scanner.isRunning():
-            self.scanner.terminate()            # force stops if it doesn’t respond
-            self.scanner.wait()                 # waits for the thread to finish
-            print("🛑 Program Stopped!")
+        # stop random mode
+        self.random_active = False
+
+        # stop scanner mode safely
+        if hasattr(self, "scanner"):
+            if hasattr(self.scanner, "stop"):
+                self.scanner.stop()
+            if self.scanner.isRunning():
+                self.scanner.terminate()
+                self.scanner.wait()
+        print("🛑 Program Stopped!")
+    
+    def toggle_random_mode(self, state):
+        self.random_mode = bool(state)
+        if self.random_mode:
+            print("🎲 Random Popup Mode Enabled")
+        else:
+            print("🎯 Normal Kill-Detection Mode Enabled")
+
+    def start_random_popups(self):
+        """Begin the random popup loop by scheduling the first popup."""
+        self.schedule_next_popup()
+
+    def schedule_next_popup(self):
+        if not self.random_active:
+            return
+        delay_ms = random.randint(20, 60) * 1000  # 20 – 60 seconds
+        QTimer.singleShot(delay_ms, self.random_popup)
+
+    def random_popup(self):
+        if not self.random_active:
+            return
+        if not hasattr(self, "image_window"):
+            self.image_window = ImageWindow()
+        self.image_window.show_image()
+        self.schedule_next_popup()
 
     def save_settings(self):
         with open("settings.txt", "w") as f:
@@ -145,7 +196,6 @@ class MainWindow(QMainWindow):
         print("💾 Settings saved!")
 
     def load_settings(self):
-
         if not os.path.exists("settings.txt"):
             print("⚙️ No settings file found, using defaults.")
             return
@@ -167,7 +217,7 @@ class MainWindow(QMainWindow):
 
     def resolution_1440p_change(self):
         self.health_region_value.setText("828, 1400, 829, 1401")
-        self.avatar_region_value.setText("1304, 1402, 1305, 1403")
+        self.avatar_region_value.setText("1282, 1359, 1283, 1360")
         self.kill_region_value.setText("2545, 100, 2546, 680")
         self.resolution_button.hide()
         self.resolution_720p.hide()
@@ -202,7 +252,17 @@ class MainWindow(QMainWindow):
         # Create and start a QTimer (50 ms refresh)
         self.coord_timer = QTimer()
         self.coord_timer.timeout.connect(update_coords)
-        self.coord_timer.start(1)
+        self.coord_timer.start(15)
+
+    def toggle_mute(self):
+        main.mute_audio = not main.mute_audio
+
+        if main.mute_audio:
+            print("🔈 Audio Muted")
+            self.mute.setText("🔈")
+        else:
+            print("🔊 Audio Unmuted")
+            self.mute.setText("🔊")
 
     # ---- Function to create a Label ---- #
     def create_label(self, text, x, y, width, height):
@@ -222,6 +282,18 @@ class MainWindow(QMainWindow):
         QPushButton:hover {background-color: #444444;}
         """)
         return button
+    
+    # ---- Function to create a Checkbox ---- #
+    def create_checkbox(self, text, x, y, width, height):
+        checkbox = QCheckBox(text, self)
+        checkbox.setGeometry(x, y, width, height)
+        checkbox.setStyleSheet("""
+        QCheckBox {font-size: 22px; font-family: "Segoe UI"; color: #FFFFFF;}
+        QCheckBox::indicator {width: 20px; height: 20px; background-color: transparent; border: 2px solid #888; border-radius: 4px;}
+        QCheckBox::indicator:checked {background-color: #37FFB0; border-color: #37FFB0;}
+        QCheckBox::indicator:hover {border-color: #FFFFFF;}
+        """)
+        return checkbox
 
     # ---- Function to create a Line_Edit ---- #
     def create_line_edit(self, x, y, width, height):
@@ -232,7 +304,7 @@ class MainWindow(QMainWindow):
         line_edit.setAlignment(Qt.AlignCenter)
 
         # Allow only digits and commas
-        regex = QRegExp("^[0-9,]*$")
+        regex = QRegExp("^[0-9, ]*$")
         validator = QRegExpValidator(regex, line_edit)
         line_edit.setValidator(validator)
 
