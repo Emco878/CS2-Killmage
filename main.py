@@ -23,6 +23,7 @@ images = [f for f in all_files if f.lower().endswith(image_extensions)]
 
 pygame.mixer.init()
 sound = pygame.mixer.Sound("sound-effect.wav")   
+mute_audio = False
 
 class ImageWindow(QWidget):
     def __init__(self):
@@ -74,7 +75,7 @@ class ImageWindow(QWidget):
 
         # Center after resizing (ensures geometry is updated)
         QTimer.singleShot(0, self.center_on_screen)
-        print(f"📷 Displaying Image: {image_path} ({pixmap.width()}x{pixmap.height()})\n")
+        print(f"\n📷 Displaying Image: {image_path} ({pixmap.width()}x{pixmap.height()})")
 
     def center_on_screen(self):
         QApplication.processEvents()
@@ -88,7 +89,10 @@ class ImageWindow(QWidget):
         self.random_image_logic()
 
         self.opacity_effect.setOpacity(0)
-        sound.play() # Plays 'sound-effect.wav'
+
+        if not mute_audio:
+            sound.play() # Plays 'sound-effect.wav'
+
         self.show()
         self.fade_in.start()
         QTimer.singleShot(350, self.fade_out.start)
@@ -140,7 +144,6 @@ class RGBScanner(QThread):
         self.cam = None
 
     def run(self):
-        """Main scanning loop."""
         print("🔷 Program Started!")
 
         # Initialize DXCam
