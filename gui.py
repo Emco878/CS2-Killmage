@@ -165,7 +165,7 @@ class MainWindow(QMainWindow):
     def toggle_random_mode(self, state):
         self.random_mode = bool(state)
         if self.random_mode:
-            print("🎲 Random Popup Mode Enabled")
+            print("🎲 Random Popup Mode Enabled (20s – 60s)")
         else:
             print("🎯 Normal Kill-Detection Mode Enabled")
 
@@ -303,7 +303,7 @@ class MainWindow(QMainWindow):
         line_edit.setContextMenuPolicy(Qt.NoContextMenu)
         line_edit.setAlignment(Qt.AlignCenter)
 
-        # Allow only digits and commas
+        # Allow only digits, commas and spaces
         regex = QRegExp("^[0-9, ]*$")
         validator = QRegExpValidator(regex, line_edit)
         line_edit.setValidator(validator)
